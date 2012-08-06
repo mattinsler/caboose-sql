@@ -1,6 +1,6 @@
 # caboose-sql
 
-  Caboose plugin.
+  SQL models for [caboose](https://github.com/mattinsler/caboose) based on [sequelize](http://www.sequelizejs.com/)
 
 ## Installation
 

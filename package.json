@@ -3,5 +3,10 @@
   "name": "caboose-sql",
   "description": "caboose-sql: a Caboose plugin",
   "version": "0.0.1",
-  "main": "index"
+  "main": "index",
+  "dependencies": {
+    "sequelize": "latest",
+    "underscore": "latest",
+    "underscore.string": "latest"
+  }
 }
