@@ -25,8 +25,6 @@ caboose_sql = module.exports =
       )
     
     initialize: ->
-      logger.log "INITIALIZING CABOOSE-SQL"
-      
       if Caboose?.app?.config?['caboose-sql']?
         caboose_sql.configure(Caboose.app.config['caboose-sql'])
   }
@@ -57,7 +55,7 @@ caboose_sql.sqlize = (model_class) ->
     o
   , {}).value()
 
-  Object.defineProperty(model_class, '__model__', value: Caboose.app.sequelize.define(table_name, model_class.model, {instanceMethods: instance_methods}))
+  Object.defineProperty(model_class, '__model__', value: Caboose.app.sequelize.define(table_name, model_class.model, {timestamps: false, instanceMethods: instance_methods}))
   delete model_class.model
 
   _.extend(model_class, caboose_sql.Queryable)

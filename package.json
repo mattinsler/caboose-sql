@@ -1,7 +1,7 @@
 {
   "author": "mattinsler <mattinsler@gmail.com>",
   "name": "caboose-sql",
-  "description": "caboose-sql: a Caboose plugin",
+  "description": "SQL models for caboose based on sequelize",
   "version": "0.0.1",
   "main": "index",
   "dependencies": {
