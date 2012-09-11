@@ -40,23 +40,27 @@ caboose_sql.configure = (config) ->
     [config.user, config.password] = uri.auth.split(':') if uri.auth?
 
 
-  if config.cache?
+  if config.cache?.enabled
     throw new Error("Caching only supports redis at the moment") unless config.cache.redis?
     try
-      redis = require 'node-redis'
+      redis = require 'redis'
     catch e
-      throw new Error("You need to install node-redis for caching to function")
+      throw new Error("You need to npm install redis for caching to function")
 
     redis_url_config = require('url').parse(config.cache.redis.url) if config.cache.redis.url?
     [redis_url_username, redis_url_password] = redis_url_config.auth.split(':') if redis_url_config?.auth?
     redis_host = redis_url_config?.hostname || config.cache.redis.host || 'localhost'
     redis_port = redis_url_config?.port || config.cache.redis.port || 6379
     redis_database = redis_url_config?.pathname.slice(1) || config.cache.redis.database
-    redis_username = redis_url_username || config.cache.redis.username
     redis_password = redis_url_password || config.cache.redis.password
 
-    caboose_sql.cache = redis.createClient(redis_port, redis_host)
-    caboose_sql.cache.auth(redis_password) if redis_password?
+    client = redis.createClient(redis_port, redis_host)
+    client.auth(redis_password) if redis_password?
+    if redis_database?
+      throw new Error('Database must be an integer') unless parseInt(redis_database).toString() is redis_database.toString()
+      client.select(parseInt(redis_database))
+
+    caboose_sql.cache = client
     caboose_sql.cache_ttl = config.cache.redis.ttl || 60
 
   Caboose.app.sequelize = new Sequelize(config.database, config.user, config.password, {
@@ -88,7 +92,7 @@ caboose_sql.sqlize = (model_class, options={}) ->
 
   Object.defineProperty(model_class, '__model__', value: Caboose.app.sequelize.define(table_name, model_class.model, {timestamps: false, instanceMethods: instance_methods}))
 
-  if options.cache.enabled?
+  if options.cache.enabled and caboose_sql.cache?
     Object.defineProperty(model_class, '__cache__', value: {client: caboose_sql.cache, ttl: options.cache.ttl})
   delete model_class.model
 
