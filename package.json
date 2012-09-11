@@ -2,11 +2,12 @@
   "author": "mattinsler <mattinsler@gmail.com>",
   "name": "caboose-sql",
   "description": "SQL models for caboose based on sequelize",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "index",
   "dependencies": {
     "sequelize": "latest",
     "underscore": "latest",
-    "underscore.string": "latest"
+    "underscore.string": "latest",
+    "node-redis": "latest"
   }
 }
