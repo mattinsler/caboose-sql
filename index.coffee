@@ -39,7 +39,7 @@ caboose_sql.configure = (config) ->
     [config.user, config.password] = uri.auth.split(':') if uri.auth?
 
 
-  if config.cache?
+  if config.cache?.enabled
     throw new Error("Caching only supports redis at the moment") unless config.cache.redis?
     try
       redis = require 'node-redis'
@@ -82,8 +82,7 @@ caboose_sql.sqlize = (model_class, options={}) ->
 
   Object.defineProperty(model_class, '__model__', value: Caboose.app.sequelize.define(table_name, model_class.model, {timestamps: false, instanceMethods: instance_methods}))
 
-  if options.cache.enabled?
-    console.log "Setting cache object"
+  if options.cache.enabled and caboose_sql.cache?
     Object.defineProperty(model_class, '__cache__', value: {client: caboose_sql.cache, ttl: options.cache.ttl})
   delete model_class.model
 
