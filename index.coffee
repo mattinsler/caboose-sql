@@ -71,9 +71,9 @@ caboose_sql.configure = (config) ->
 
 
 caboose_sql.clear_cache = () ->
+  return unless caboose_sql.cache?
   caboose_sql.cache.keys "sql:*", (err, keys) =>
-    caboose_sql.cache.del keys.join " ", (err, count) =>
-      console.log "Cleared #{keys.length} keys from cache"
+    caboose_sql.cache.del keys, (err, count) =>
 
 caboose_sql.sqlize = (model_class, options={}) ->
   throw new Error('Must define @model') unless model_class.model?
@@ -158,7 +158,7 @@ CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
       return callback(err) if err?
 
       try
-        return callback null, JSON.parse cached_result
+        return callback(null, JSON.parse(cached_result))
       catch e
         @model[method](@__prepare_query__()).error((err) ->
           callback(err) if err
