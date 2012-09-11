@@ -30,6 +30,7 @@ caboose_sql = module.exports =
         caboose_sql.configure(Caboose.app.config['caboose-sql'])
   }
 
+
 caboose_sql.configure = (config) ->
   if config.url
     uri = require('url').parse(config.url)
@@ -65,6 +66,11 @@ caboose_sql.configure = (config) ->
   })
 
 
+caboose_sql.clear_cache = () ->
+  caboose_sql.cache.keys "sql:*", (err, keys) =>
+    caboose_sql.cache.del keys.join " ", (err, count) =>
+      console.log "Cleared #{keys.length} keys from cache"
+
 caboose_sql.sqlize = (model_class, options={}) ->
   throw new Error('Must define @model') unless model_class.model?
 
@@ -83,7 +89,6 @@ caboose_sql.sqlize = (model_class, options={}) ->
   Object.defineProperty(model_class, '__model__', value: Caboose.app.sequelize.define(table_name, model_class.model, {timestamps: false, instanceMethods: instance_methods}))
 
   if options.cache.enabled?
-    console.log "Setting cache object"
     Object.defineProperty(model_class, '__cache__', value: {client: caboose_sql.cache, ttl: options.cache.ttl})
   delete model_class.model
 
