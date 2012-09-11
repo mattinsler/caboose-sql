@@ -7,7 +7,6 @@
   "dependencies": {
     "sequelize": "latest",
     "underscore": "latest",
-    "underscore.string": "latest",
-    "node-redis": "latest"
+    "underscore.string": "latest"
   }
 }
