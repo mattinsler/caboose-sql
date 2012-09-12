@@ -60,8 +60,11 @@ caboose_sql.configure = (config) ->
       throw new Error('Database must be an integer') unless parseInt(redis_database).toString() is redis_database.toString()
       client.select(parseInt(redis_database))
 
-    caboose_sql.cache = client
-    caboose_sql.cache_ttl = config.cache.redis.ttl || 60
+    caboose_sql.cache = {
+      client: client
+      ttl: config.cache.redis.ttl ? 60
+      prefix: config.cache.redis.prefix ? 'sql:'
+    }
 
   Caboose.app.sequelize = new Sequelize(config.database, config.user, config.password, {
     dialect: config.dialect
@@ -72,14 +75,15 @@ caboose_sql.configure = (config) ->
 
 caboose_sql.clear_cache = () ->
   return unless caboose_sql.cache?
-  caboose_sql.cache.keys "sql:*", (err, keys) =>
-    caboose_sql.cache.del keys, (err, count) =>
+  caboose_sql.cache.client.keys "sql:*", (err, keys) =>
+    caboose_sql.cache.client.del keys, (err, count) =>
 
 caboose_sql.sqlize = (model_class, options={}) ->
   throw new Error('Must define @model') unless model_class.model?
 
   options.cache ?= {}
-  options.cache.ttl ?= caboose_sql.cache_ttl
+  options.cache.ttl ?= caboose_sql.cache?.ttl
+  options.cache.prefix ?= caboose_sql.cache?.prefix
   options.cache.enabled ?= false
 
   table_name = model_class.store_in || _.str.underscored(/function +([^\(]+)/.exec(model_class.toString())[1])
@@ -93,7 +97,7 @@ caboose_sql.sqlize = (model_class, options={}) ->
   Object.defineProperty(model_class, '__model__', value: Caboose.app.sequelize.define(table_name, model_class.model, {timestamps: false, instanceMethods: instance_methods}))
 
   if options.cache.enabled and caboose_sql.cache?
-    Object.defineProperty(model_class, '__cache__', value: {client: caboose_sql.cache, ttl: options.cache.ttl})
+    Object.defineProperty(model_class, '__cache__', value: _.extend({client: caboose_sql.cache.client}, options.cache))
   delete model_class.model
 
   _.extend(model_class, caboose_sql.Queryable)
@@ -142,50 +146,78 @@ CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
   constructor: (@model, @cache, @query) ->
     @options = {}
 
-  query_hash: ->
-    hash = crypto.createHash('md5')
-    h = {
-      table: @model.tableName,
-      query: @__prepare_query__()
-    }
-    hash.update JSON.stringify(h)
-    return "sql:#{hash.digest('hex')}"
-
-  cached_query: (method, callback) ->
-    h = @query_hash()
-
-    @cache.client.get h, (err, cached_result) =>
+  __cached_query__: (method, callback) ->
+    query_hash = (method, query) =>
+      hash = crypto.createHash('md5')
+      h = {
+        table: @model.tableName,
+        method: method
+        query: query
+      }
+      hash.update JSON.stringify(h)
+      "#{@cache.prefix}#{hash.digest('hex')}"
+    
+    read_cache = (hash, cb) =>
+      @cache.client.get(hash, cb)
+    
+    write_cache = (hash, result) =>
+      # cache only values of result
+      if Array.isArray(result)
+        values = result.map (r) -> r.values
+      else if result.values?
+        values = result.values
+      else
+        # handle count
+        values = result
+      
+      @cache.client.setex(hash, @cache.ttl, JSON.stringify(values))
+    
+    inflate_cached_object = (method, cached_result) =>
+      values = JSON.parse(cached_result)
+      return values if method is 'count'
+      return values.map((v) -> v = @model.build(v); v.isNewRecord = false; v) if Array.isArray(values)
+      v = @model.build(values)
+      v.isNewRecord = false
+      v
+    
+    read_database = (hash, cb) =>
+      CachedQuery.__super__[method].call @, (err, result) =>
+        return callback(err) if err?
+        cb(err, result)
+        
+        write_cache(hash, result)
+    
+    
+    query = @__prepare_query__()
+    hash = query_hash(method, query)
+    
+    read_cache hash, (err, cached_result) ->
       return callback(err) if err?
-
+      
+      return read_database(hash, callback) unless cached_result?
       try
-        return callback(null, JSON.parse(cached_result))
+        callback(null, inflate_cached_object(method, cached_result))
       catch e
-        @model[method](@__prepare_query__()).error((err) ->
-          callback(err) if err
-        ).success((value) =>
-          callback(null, value)
-          if Array.isArray(value)
-            value = value.map (v) -> v.values
-          else
-            value = value.values
-          @cache.client.set h, JSON.stringify(value), (err) =>
-            @cache.client.expire h, @cache.ttl, () -> return
-        )
+        read_database(hash, callback)
 
   first: (callback) ->
-    @cached_query 'find', callback
+    @__cached_query__('first', callback)
 
   array: (callback) ->
-    @cached_query 'findAll', callback
+    @__cached_query__('array', callback)
 
   count: (callback) ->
-    @cached_query 'count', callback
+    @__cached_query__('count', callback)
 
 caboose_sql.Queryable = {
   where: (query) ->
-    unless @__cache__?
-      return new Query(@__model__, query)
-    return new CachedQuery(@__model__, @__cache__, query)
+    if @__cache__? then new CachedQuery(@__model__, @__cache__, query) else new Query(@__model__, query)
+  
+  limit: (value) -> @where({}).limit(value)
+  skip: (value) -> @where({}).skip(value)
+  first: (callback) -> @where({}).first(callback)
+  array: (callback) -> @where({}).array(callback)
+  count: (callback) -> @where({}).count(callback)
 }
 
 caboose_sql[f] = Sequelize[f] for f in ['STRING', 'TEXT', 'INTEGER', 'DATE', 'BOOLEAN', 'FLOAT']
