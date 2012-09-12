@@ -164,7 +164,9 @@ CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
       return unless result?
       
       # cache only values of result
-      if Array.isArray(result)
+      if result is null
+        values = null
+      else if Array.isArray(result)
         values = result.map (r) -> r.values
       else if result.values?
         values = result.values
