@@ -161,8 +161,6 @@ CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
       @cache.client.get(hash, cb)
     
     write_cache = (hash, result) =>
-      return unless result?
-      
       # cache only values of result
       if result is null
         values = null
