@@ -141,6 +141,11 @@ Query = caboose_sql.Query = class Query
     ).success((value) ->
       callback(null, value)
     )
+  
+  update: (data, callback) ->
+    @model.updateAttributes(data).error((err) ->
+      callback(err)
+    ).success(callback)
 
 CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
   constructor: (@model, @cache, @query) ->
