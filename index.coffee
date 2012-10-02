@@ -120,7 +120,25 @@ Query = caboose_sql.Query = class Query
   skip: (value) ->
     @options.offset = value
     @
-
+  
+  sort: (fields) ->
+    @options.order = _(fields).map((direction, key) ->
+      dir = switch direction
+        when 1 then 'ASC'
+        when -1 then 'DESC'
+        else 'ASC'
+      "#{key} #{dir}"
+    ).join(', ')
+    @
+  
+  fields: (fields) ->
+    if typeof fields is 'string'
+      fields = [fields]
+    unless Array.isArray(fields)
+      fields = _(fields).keys()
+    @options.attributes = fields
+    @
+  
   first: (callback) ->
     @model.find(@__prepare_query__()).error((err) ->
       callback(err)
@@ -222,6 +240,8 @@ caboose_sql.Queryable = {
   
   limit: (value) -> @where({}).limit(value)
   skip: (value) -> @where({}).skip(value)
+  sort: (fields) -> @where({}).sort(fields)
+  fields: (fields) -> @where({}).fields(fields)
   first: (callback) -> @where({}).first(callback)
   array: (callback) -> @where({}).array(callback)
   count: (callback) -> @where({}).count(callback)
