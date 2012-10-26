@@ -70,6 +70,7 @@ caboose_sql.configure = (config) ->
     dialect: config.dialect
     host: config.host
     port: config.port
+    logging: if Caboose.env is "development" then true else false
   })
 
 
@@ -120,7 +121,7 @@ Query = caboose_sql.Query = class Query
   skip: (value) ->
     @options.offset = value
     @
-  
+
   sort: (fields) ->
     @options.order = _(fields).map((direction, key) ->
       dir = switch direction
@@ -130,7 +131,7 @@ Query = caboose_sql.Query = class Query
       "#{key} #{dir}"
     ).join(', ')
     @
-  
+
   fields: (fields) ->
     if typeof fields is 'string'
       fields = [fields]
@@ -138,7 +139,7 @@ Query = caboose_sql.Query = class Query
       fields = _(fields).keys()
     @options.attributes = fields
     @
-  
+
   first: (callback) ->
     @model.find(@__prepare_query__()).error((err) ->
       callback(err)
@@ -159,7 +160,7 @@ Query = caboose_sql.Query = class Query
     ).success((value) ->
       callback(null, value)
     )
-  
+
   update: (data, callback) ->
     @model.updateAttributes(data).error((err) ->
       callback(err)
@@ -179,10 +180,10 @@ CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
       }
       hash.update JSON.stringify(h)
       "#{@cache.prefix}#{hash.digest('hex')}"
-    
+
     read_cache = (hash, cb) =>
       @cache.client.get(hash, cb)
-    
+
     write_cache = (hash, result) =>
       # cache only values of result
       if result is null
@@ -194,9 +195,9 @@ CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
       else
         # handle count
         values = result
-      
+
       @cache.client.setex(hash, @cache.ttl, JSON.stringify(values))
-    
+
     inflate_cached_object = (method, cached_result) =>
       values = JSON.parse(cached_result)
       return values if method is 'count'
@@ -204,21 +205,21 @@ CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
       v = @model.build(values)
       v.isNewRecord = false
       v
-    
+
     read_database = (hash, cb) =>
       CachedQuery.__super__[method].call @, (err, result) =>
         return callback(err) if err?
         cb(err, result)
-        
+
         write_cache(hash, result)
-    
-    
+
+
     query = @__prepare_query__()
     hash = query_hash(method, query)
-    
+
     read_cache hash, (err, cached_result) ->
       return callback(err) if err?
-      
+
       return read_database(hash, callback) unless cached_result?
       try
         callback(null, inflate_cached_object(method, cached_result))
@@ -237,7 +238,7 @@ CachedQuery = caboose_sql.CachedQuery = class CachedQuery extends Query
 caboose_sql.Queryable = {
   where: (query) ->
     if @__cache__? then new CachedQuery(@__model__, @__cache__, query) else new Query(@__model__, query)
-  
+
   limit: (value) -> @where({}).limit(value)
   skip: (value) -> @where({}).skip(value)
   sort: (fields) -> @where({}).sort(fields)
