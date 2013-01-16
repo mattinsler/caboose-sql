@@ -70,7 +70,7 @@ caboose_sql.configure = (config) ->
     dialect: config.dialect
     host: config.host
     port: config.port
-    logging: if Caboose.env is "development" then true else false
+    logging: if Caboose.env is "development" then console.log else false
   })
 
 

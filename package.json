@@ -2,7 +2,7 @@
   "author": "mattinsler <mattinsler@gmail.com>",
   "name": "caboose-sql",
   "description": "SQL models for caboose based on sequelize",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "main": "index",
   "dependencies": {
     "sequelize": "1.4.1",
