@@ -38,6 +38,7 @@ caboose_sql.configure = (config) ->
     config.port = parseInt(uri.port) if uri.port?
     config.database = uri.pathname.replace /^\//g, ''
     [config.user, config.password] = uri.auth.split(':') if uri.auth?
+    config.dialect = uri.protocol.replace /:/g, ''
 
 
   if config.cache?.enabled
@@ -70,7 +71,8 @@ caboose_sql.configure = (config) ->
     dialect: config.dialect
     host: config.host
     port: config.port
-    logging: if Caboose.env is "development" then console.log else false
+    logging: if Caboose.env is "development" then console.log else false,
+    omitNull: true
   })
 
 
@@ -95,6 +97,7 @@ caboose_sql.sqlize = (model_class, options={}) ->
     o
   , {}).value()
 
+
   Object.defineProperty(model_class, '__model__', value: Caboose.app.sequelize.define(table_name, model_class.model, {timestamps: false, instanceMethods: instance_methods}))
 
   if options.cache.enabled and caboose_sql.cache?
@@ -102,8 +105,32 @@ caboose_sql.sqlize = (model_class, options={}) ->
   delete model_class.model
 
   _.extend(model_class, caboose_sql.Queryable)
+  _.extend(model_class, caboose_sql.Model)
 
   model_class
+
+Model = caboose_sql.Model = {
+  build: (obj, callback) ->
+    @__model__.build(obj).error((err) ->
+      callback(err)
+    ).success((value) ->
+      callback(null, value)
+    )
+
+  create: (obj, callback) ->
+    @__model__.create(obj).error((err) ->
+      callback(err)
+    ).success((value) ->
+      callback(null, value)
+    )
+
+  save: (obj, callback) ->
+    @__model__.save(obj).error((err) ->
+      callback(err)
+    ).success((value) ->
+      callback(null, value)
+    )
+}
 
 Query = caboose_sql.Query = class Query
   constructor: (@model, @query) ->
@@ -143,7 +170,7 @@ Query = caboose_sql.Query = class Query
   first: (callback) ->
     @model.find(@__prepare_query__()).error((err) ->
       callback(err)
-    ).success((value) =>
+    ).success((value) ->
       callback(null, value)
     )
 
