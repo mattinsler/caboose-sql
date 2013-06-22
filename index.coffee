@@ -38,6 +38,7 @@ caboose_sql.configure = (config) ->
     config.port = parseInt(uri.port) if uri.port?
     config.database = uri.pathname.replace /^\//g, ''
     [config.user, config.password] = uri.auth.split(':') if uri.auth?
+    config.dialect = uri.protocol.replace /:/g, ''
 
 
   if config.cache?.enabled
@@ -70,7 +71,8 @@ caboose_sql.configure = (config) ->
     dialect: config.dialect
     host: config.host
     port: config.port
-    logging: if Caboose.env is "development" then console.log else false
+    logging: if Caboose.env is "development" then console.log else false,
+    omitNull: true
   })
 
 
